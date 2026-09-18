@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nera | Three Pieces. One Line. Victory.</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="site-header">
+      <div class="brand-lockup">
+        <span class="brand-mark" aria-hidden="true">✦</span>
+        <div>
+          <p class="eyebrow">A game of alignment</p>
+          <h1>NERA</h1>
+        </div>
+      </div>
+      <p class="tagline">Three Pieces. One Line. Victory.</p>
+    </header>
+
+    <section id="mode-screen" class="mode-screen" aria-labelledby="mode-title">
+      <div class="mode-intro">
+        <p class="eyebrow">A game of alignment</p>
+        <h2 id="mode-title">Choose your table.</h2>
+        <p>Play beside someone or connect across the room.</p>
+      </div>
+      <div class="mode-actions">
+        <button id="play-online" class="primary-button" type="button">Play online <span>↗</span></button>
+        <button id="play-local" class="secondary-button mode-secondary-button" type="button">Play local <span>→</span></button>
+      </div>
+    </section>
+
+    <section id="online-menu" class="online-screen hidden" aria-labelledby="online-menu-title">
+      <div class="online-panel">
+        <p class="eyebrow">Connected play</p>
+        <h2 id="online-menu-title">Play online</h2>
+        <button id="create-game" class="primary-button" type="button">Create game <span>↗</span></button>
+        <p class="or-label">or</p>
+        <form id="join-form" class="join-panel">
+          <label for="room-code-input">Room code</label>
+          <input id="room-code-input" name="roomCode" type="text" maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC123">
+          <button class="secondary-button join-button" type="submit">Join <span>→</span></button>
+          <p id="join-error" class="online-error" role="alert"></p>
+        </form>
+        <button id="online-back" class="text-button" type="button">Back</button>
+      </div>
+    </section>
+
+    <section id="online-status" class="online-screen hidden" aria-live="polite" aria-labelledby="online-status-title">
+      <div class="online-panel status-panel">
+        <p class="eyebrow" id="online-status-kicker">Room status</p>
+        <h2 id="online-status-title">Game created</h2>
+        <p class="room-label">Room code</p>
+        <strong id="room-code-display" class="room-code">------</strong>
+        <p id="online-status-detail" class="online-detail"></p>
+        <button id="copy-code" class="secondary-button" type="button">Copy code</button>
+        <p id="copy-feedback" class="copy-feedback" aria-live="polite"></p>
+        <button id="status-back" class="text-button" type="button">Back to menu</button>
+      </div>
+    </section>
+
+    <section id="setup-screen" class="setup-screen hidden" aria-labelledby="setup-title">
+      <div class="setup-intro">
+        <p class="eyebrow">Prepare the table</p>
+        <h2 id="setup-title">Choose your signature.</h2>
+        <p>Each player commands three pieces. Claim a line before your opponent does.</p>
+      </div>
+      <div class="selection-grid">
+        <article class="player-choice" data-player="0">
+          <div class="choice-heading"><span class="player-dot coral"></span><div><p class="eyebrow">Player 1</p><h3>First move</h3></div></div>
+          <div class="piece-options" aria-label="Player 1 piece choices"></div>
+          <p class="selection-note" data-note="0">Choose a piece</p>
+        </article>
+        <article class="player-choice" data-player="1">
+          <div class="choice-heading"><span class="player-dot cyan"></span><div><p class="eyebrow">Player 2</p><h3>Counter move</h3></div></div>
+          <div class="piece-options" aria-label="Player 2 piece choices"></div>
+          <p class="selection-note" data-note="1">Choose a piece</p>
+        </article>
+      </div>
+      <button id="start-game" class="primary-button" type="button" disabled>Start game <span>→</span></button>
+    </section>
+
+    <section id="game-screen" class="game-screen hidden" aria-live="polite">
+      <div class="game-topbar">
+        <div id="player-card-0" class="player-card active" data-player="0">
+          <div class="player-card-top"><span class="player-dot coral"></span><span class="turn-label">YOUR TURN</span></div>
+          <h2>Player 1</h2><div class="player-piece-display"><span class="chosen-piece">●</span><span class="piece-count">3 pieces</span></div>
+        </div>
+        <div class="turn-status"><span class="status-kicker">Current play</span><strong id="status-title">Player 1: Place a piece</strong><span id="status-detail">Place all three pieces to enter the movement phase.</span></div>
+        <div id="player-card-1" class="player-card" data-player="1">
+          <div class="player-card-top"><span class="player-dot cyan"></span><span class="turn-label">WAITING</span></div>
+          <h2>Player 2</h2><div class="player-piece-display"><span class="chosen-piece">●</span><span class="piece-count">3 pieces</span></div>
+        </div>
+      </div>
+
+      <div class="board-area">
+        <div id="board" class="board" role="grid" aria-label="Nera game board">
+          <svg class="board-lines" viewBox="0 0 100 100" aria-hidden="true">
+            <path d="M 8 8 H 92 M 8 50 H 92 M 8 92 H 92 M 8 8 V 92 M 50 8 V 92 M 92 8 V 92 M 8 8 L 92 92 M 92 8 L 8 92" />
+          </svg>
+          <div class="line-glow" aria-hidden="true"></div>
+        </div>
+        <p class="board-hint" id="board-hint">Place a piece on any open point</p>
+      </div>
+
+      <div class="game-actions"><button id="mute-button" class="icon-button" type="button" aria-pressed="false" title="Mute sounds"><span aria-hidden="true">◒</span><span>Sound on</span></button><div><button id="draw-game" class="secondary-button" type="button">Declare draw</button><button id="new-game" class="secondary-button" type="button">New game</button></div></div>
+    </section>
+  </main>
+
+  <div id="result-overlay" class="result-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="result-title">
+    <div class="result-card"><span class="result-spark" aria-hidden="true">✦</span><p class="eyebrow">The line is complete</p><h2 id="result-title">Player 1 wins!</h2><p id="result-subtitle">Three in a row.</p><button id="play-again" class="primary-button" type="button">Play again <span>↗</span></button></div>
+  </div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
