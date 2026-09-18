@@ -19,7 +19,36 @@ const setupScreen = el('setup-screen'); const gameScreen = el('game-screen'); co
 const modeScreen = el('mode-screen'); const onlineMenu = el('online-menu'); const onlineStatus = el('online-status');
 let onlineMode = false; let roomCode = null; let playerNumber = null;
 let onlineGameReady = false;
+let sessionToken = null;
+let pendingOnlineAction = false;
 let audioContext;
+
+function sendOnlineAction(eventName, payload) {
+  if (!socket.connected) {
+    el('board-hint').textContent = 'Connection unavailable. Reconnecting...';
+    return false;
+  }
+  if (pendingOnlineAction) return false;
+  pendingOnlineAction = true;
+  socket.emit(eventName, payload, result => {
+    pendingOnlineAction = false;
+    if (result && !result.ok && result.message) el('board-hint').textContent = result.message;
+  });
+  return true;
+}
+
+function rememberRoom(data) {
+  roomCode = data.roomCode;
+  playerNumber = data.playerNumber;
+  sessionToken = data.sessionToken || sessionToken;
+  if (roomCode && sessionToken) localStorage.setItem('neraRoomSession', JSON.stringify({ roomCode, sessionToken }));
+}
+function forgetRoomSession() {
+  localStorage.removeItem('neraRoomSession');
+  roomCode = null;
+  playerNumber = null;
+  sessionToken = null;
+}
 
 function showScreen(screen) {
   [modeScreen, onlineMenu, onlineStatus, setupScreen, gameScreen].forEach(view => view.classList.add('hidden'));
@@ -35,7 +64,8 @@ function showOnlineStatus(title, detail, kicker = 'Room status') {
   showScreen(onlineStatus);
 }
 function showOpponentDisconnected() {
-  roomCode = null; playerNumber = null; onlineMode = false;
+  forgetRoomSession();
+  onlineMode = false;
   el('online-status-kicker').textContent = 'Connection ended';
   el('online-status-title').textContent = 'Opponent disconnected';
   el('room-code-display').textContent = '';
@@ -56,7 +86,7 @@ function initSetup() {
       const button = event.target.closest('.piece-option'); if (!button || button.classList.contains('unavailable')) return;
       if (onlineMode) {
         if (playerIndex !== playerNumber - 1) return invalidAction();
-        socket.emit('selectPiece', Number(button.dataset.piece));
+        sendOnlineAction('selectPiece', Number(button.dataset.piece));
         return;
       }
       state.players[playerIndex].piece = Number(button.dataset.piece);
@@ -99,7 +129,7 @@ function handlePointClick(index) {
     if (state.currentPlayer !== localPlayerIndex) return invalidAction();
     if (state.gamePhase === 'placement') {
       if (state.board[index] !== null || state.players[localPlayerIndex].remaining === 0) return invalidAction();
-      socket.emit('placePiece', { position: index });
+      sendOnlineAction('placePiece', { position: index });
       return;
     }
     if (state.selectedPiece === null) {
@@ -108,8 +138,7 @@ function handlePointClick(index) {
     }
     if (index === state.selectedPiece) { state.selectedPiece = null; updateStatus(); renderBoard(); return; }
     if (state.board[index] === null && adjacency[state.selectedPiece].includes(index)) {
-      socket.emit('movePiece', { from: state.selectedPiece, to: index });
-      state.selectedPiece = null;
+      if (sendOnlineAction('movePiece', { from: state.selectedPiece, to: index })) state.selectedPiece = null;
       return;
     }
     return invalidAction();
@@ -156,6 +185,7 @@ function updateStatus() {
 }
 
 function applyOnlineGameState(gameState) {
+  pendingOnlineAction = false;
   state.board = [...gameState.board];
   state.currentPlayer = gameState.currentPlayer;
   state.gamePhase = gameState.gamePhase;
@@ -164,7 +194,8 @@ function applyOnlineGameState(gameState) {
   state.selectedPiece = null;
   gameState.remaining.forEach((remaining, index) => { state.players[index].remaining = remaining; });
   gameState.pieces.forEach((piece, index) => { state.players[index].piece = piece; });
-  showScreen(gameScreen);
+  const piecesSelected = gameState.pieces.every(piece => piece !== null);
+  showScreen(piecesSelected ? gameScreen : setupScreen);
   renderBoard();
   updateStatus();
   document.querySelectorAll('.point').forEach((point, index) => point.classList.toggle('winner', Boolean(gameState.winningLine && gameState.winningLine.includes(index))));
@@ -179,23 +210,39 @@ function applyOnlineGameState(gameState) {
 function invalidAction() { playTone('invalid'); boardEl.animate([{ transform: 'translateX(-3px)' }, { transform: 'translateX(3px)' }, { transform: 'none' }], { duration: 160 }); }
 function playTone(type) { if (state.muted) return; audioContext ??= new (window.AudioContext || window.webkitAudioContext)(); const oscillator = audioContext.createOscillator(); const gain = audioContext.createGain(); const settings = { select: [440, .05], place: [560, .08], move: [680, .1], invalid: [150, .12], win: [820, .28] }[type]; oscillator.frequency.value = settings[0]; oscillator.type = type === 'invalid' ? 'sawtooth' : 'sine'; gain.gain.setValueAtTime(.045, audioContext.currentTime); gain.gain.exponentialRampToValueAtTime(.001, audioContext.currentTime + settings[1]); oscillator.connect(gain); gain.connect(audioContext.destination); oscillator.start(); oscillator.stop(audioContext.currentTime + settings[1]); }
 
-el('start-game').addEventListener('click', startGame); el('draw-game').addEventListener('click', finishDraw); el('new-game').addEventListener('click', () => { if (onlineMode) { socket.emit('restartGame'); return; } state.players.forEach(player => { player.piece = null; }); gameScreen.classList.add('hidden'); el('result-overlay').classList.add('hidden'); setupScreen.classList.remove('hidden'); updateSetupChoices(); }); el('play-again').addEventListener('click', () => { if (onlineMode) { el('result-overlay').classList.add('hidden'); socket.emit('restartGame'); return; } el('result-overlay').classList.add('hidden'); startGame(); }); el('mute-button').addEventListener('click', event => { state.muted = !state.muted; event.currentTarget.setAttribute('aria-pressed', state.muted); event.currentTarget.querySelector('span:last-child').textContent = state.muted ? 'Sound off' : 'Sound on'; });
+el('start-game').addEventListener('click', startGame); el('draw-game').addEventListener('click', finishDraw); el('new-game').addEventListener('click', () => { if (onlineMode) { sendOnlineAction('newGame'); return; } state.players.forEach(player => { player.piece = null; }); gameScreen.classList.add('hidden'); el('result-overlay').classList.add('hidden'); setupScreen.classList.remove('hidden'); updateSetupChoices(); }); el('play-again').addEventListener('click', () => { if (onlineMode) { sendOnlineAction('playAgain'); return; } el('result-overlay').classList.add('hidden'); startGame(); }); el('mute-button').addEventListener('click', event => { state.muted = !state.muted; event.currentTarget.setAttribute('aria-pressed', state.muted); event.currentTarget.querySelector('span:last-child').textContent = state.muted ? 'Sound off' : 'Sound on'; });
 el('play-local').addEventListener('click', () => { onlineMode = false; resetOnlineStatusControls(); showSetupScreen(); });
 el('play-online').addEventListener('click', () => { onlineMode = true; el('join-error').textContent = ''; showScreen(onlineMenu); });
-el('online-back').addEventListener('click', () => { onlineMode = false; showScreen(modeScreen); });
-el('status-back').addEventListener('click', () => { onlineMode = false; resetOnlineStatusControls(); showScreen(modeScreen); });
-el('create-game').addEventListener('click', () => { onlineMode = true; el('create-game').disabled = true; socket.emit('createRoom'); });
-el('join-form').addEventListener('submit', event => { event.preventDefault(); const code = el('room-code-input').value.trim().toUpperCase(); if (!code) { el('join-error').textContent = 'Enter a room code.'; return; } onlineMode = true; socket.emit('joinRoom', code); });
+el('online-back').addEventListener('click', () => { onlineMode = false; forgetRoomSession(); showScreen(modeScreen); });
+el('status-back').addEventListener('click', () => { onlineMode = false; forgetRoomSession(); resetOnlineStatusControls(); showScreen(modeScreen); });
+el('create-game').addEventListener('click', () => { onlineMode = true; el('create-game').disabled = true; if (socket.connected) socket.emit('createRoom'); });
+el('join-form').addEventListener('submit', event => { event.preventDefault(); const code = el('room-code-input').value.trim().toUpperCase(); if (!code) { el('join-error').textContent = 'Enter a room code.'; return; } onlineMode = true; if (socket.connected) socket.emit('joinRoom', code); else el('join-error').textContent = 'Connection unavailable. Reconnecting...'; });
 el('copy-code').addEventListener('click', async () => { if (!roomCode || !navigator.clipboard) { el('copy-feedback').textContent = 'Copy the code manually.'; return; } try { await navigator.clipboard.writeText(roomCode); el('copy-feedback').textContent = 'Copied.'; } catch { el('copy-feedback').textContent = 'Copy the code manually.'; } });
 
-socket.on('roomCreated', data => { roomCode = data.roomCode; playerNumber = data.playerNumber; el('create-game').disabled = false; resetOnlineStatusControls(); showOnlineStatus('Game created', 'Share this code with your friend. Waiting for Player 2...', 'Room ready'); });
-socket.on('roomJoined', data => { roomCode = data.roomCode; playerNumber = data.playerNumber; resetOnlineStatusControls(); showOnlineStatus('Joined game', `You are Player ${playerNumber}. Waiting for game...`, 'Room joined'); });
+socket.on('connect', () => {
+  console.log('[Nera] Socket connected', socket.id);
+  const savedSession = localStorage.getItem('neraRoomSession');
+  if (savedSession) {
+    try {
+      const saved = JSON.parse(savedSession);
+      socket.emit('resumeRoom', saved);
+    } catch {
+      localStorage.removeItem('neraRoomSession');
+    }
+  }
+  if (roomCode) socket.emit('requestGameState');
+});
+socket.on('disconnect', () => { pendingOnlineAction = false; console.log('[Nera] Socket disconnected; waiting to reconnect'); });
+socket.on('roomCreated', data => { rememberRoom(data); el('create-game').disabled = false; resetOnlineStatusControls(); showOnlineStatus('Game created', 'Share this code with your friend. Waiting for Player 2...', 'Room ready'); });
+socket.on('roomJoined', data => { rememberRoom(data); resetOnlineStatusControls(); showOnlineStatus('Joined game', `You are Player ${playerNumber}. Waiting for game...`, 'Room joined'); });
+socket.on('roomResumed', data => { rememberRoom(data); onlineMode = true; socket.emit('requestGameState'); console.log('[Nera] Room resumed', roomCode); });
+socket.on('resumeError', () => { localStorage.removeItem('neraRoomSession'); });
 socket.on('joinError', message => { el('create-game').disabled = false; el('join-error').textContent = message; showScreen(onlineMenu); });
 socket.on('roomReady', () => { resetOnlineStatusControls(); showSetupScreen(); });
 socket.on('setupUpdate', data => { data.pieces.forEach((piece, index) => { state.players[index].piece = piece; }); updateSetupChoices(); });
 socket.on('gameReady', () => { onlineGameReady = true; showScreen(gameScreen); });
 socket.on('gameState', applyOnlineGameState);
-socket.on('invalidMove', message => { el('board-hint').textContent = message; invalidAction(); });
+socket.on('invalidMove', message => { pendingOnlineAction = false; el('board-hint').textContent = message; invalidAction(); });
 socket.on('rematchWaiting', () => { el('result-subtitle').textContent = 'Waiting for your opponent to agree to a rematch.'; el('result-overlay').classList.remove('hidden'); });
 socket.on('opponentDisconnected', showOpponentDisconnected);
 initSetup();
