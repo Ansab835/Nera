@@ -28,6 +28,7 @@
       <div class="mode-actions">
         <button id="play-online" class="primary-button" type="button">Play online <span>↗</span></button>
         <button id="play-local" class="secondary-button mode-secondary-button" type="button">Play local <span>→</span></button>
+        <button id="about-button" class="text-button mode-about-button" type="button">About Nera</button>
       </div>
     </section>
 
@@ -110,6 +111,20 @@
 
   <div id="result-overlay" class="result-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="result-title">
     <div class="result-card"><span class="result-spark" aria-hidden="true">✦</span><p class="eyebrow">The line is complete</p><h2 id="result-title">Player 1 wins!</h2><p id="result-subtitle">Three in a row.</p><button id="play-again" class="primary-button" type="button">Play again <span>↗</span></button></div>
+  </div>
+  <div id="about-overlay" class="about-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="about-title" aria-describedby="about-description">
+    <article class="about-card">
+      <span class="about-spark" aria-hidden="true">✦</span>
+      <p class="eyebrow">About the game</p>
+      <h2 id="about-title">Nera</h2>
+      <p class="about-tagline">Three Pieces. One Line.</p>
+      <p id="about-description" class="about-description">A multiplayer strategy game where two players compete to form three pieces in a straight line.</p>
+      <div class="about-credit">
+        <p>Created by Muhammed Ansab C</p>
+        <p>&copy; 2026 Muhammed Ansab C</p>
+      </div>
+      <button id="about-close" class="secondary-button about-close" type="button">Close</button>
+    </article>
   </div>
   <script src="/socket.io/socket.io.js"></script>
   <script src="script.js"></script>

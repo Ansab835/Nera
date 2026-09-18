@@ -213,6 +213,12 @@ function playTone(type) { if (state.muted) return; audioContext ??= new (window.
 el('start-game').addEventListener('click', startGame); el('draw-game').addEventListener('click', finishDraw); el('new-game').addEventListener('click', () => { if (onlineMode) { sendOnlineAction('newGame'); return; } state.players.forEach(player => { player.piece = null; }); gameScreen.classList.add('hidden'); el('result-overlay').classList.add('hidden'); setupScreen.classList.remove('hidden'); updateSetupChoices(); }); el('play-again').addEventListener('click', () => { if (onlineMode) { sendOnlineAction('playAgain'); return; } el('result-overlay').classList.add('hidden'); startGame(); }); el('mute-button').addEventListener('click', event => { state.muted = !state.muted; event.currentTarget.setAttribute('aria-pressed', state.muted); event.currentTarget.querySelector('span:last-child').textContent = state.muted ? 'Sound off' : 'Sound on'; });
 el('play-local').addEventListener('click', () => { onlineMode = false; resetOnlineStatusControls(); showSetupScreen(); });
 el('play-online').addEventListener('click', () => { onlineMode = true; el('join-error').textContent = ''; showScreen(onlineMenu); });
+const aboutOverlay = el('about-overlay');
+function closeAbout() { aboutOverlay.classList.add('hidden'); }
+el('about-button').addEventListener('click', () => { aboutOverlay.classList.remove('hidden'); el('about-close').focus(); });
+el('about-close').addEventListener('click', closeAbout);
+aboutOverlay.addEventListener('click', event => { if (event.target === aboutOverlay) closeAbout(); });
+document.addEventListener('keydown', event => { if (event.key === 'Escape' && !aboutOverlay.classList.contains('hidden')) closeAbout(); });
 el('online-back').addEventListener('click', () => { onlineMode = false; forgetRoomSession(); showScreen(modeScreen); });
 el('status-back').addEventListener('click', () => { onlineMode = false; forgetRoomSession(); resetOnlineStatusControls(); showScreen(modeScreen); });
 el('create-game').addEventListener('click', () => { onlineMode = true; el('create-game').disabled = true; if (socket.connected) socket.emit('createRoom'); });
